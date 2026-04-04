@@ -1,2 +1,2 @@
 # ReCut
-A game project for C# Programming course in University.
+A MonoGame game project for C# Programming course in University.
