@@ -8,7 +8,7 @@ public class Game1 : Game
 {
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
-
+    private KeyboardState _previousState;
     public Game1()
     {
         _graphics = new GraphicsDeviceManager(this);
@@ -20,7 +20,14 @@ public class Game1 : Game
 
     public void ToggleFullScreen()
     {
+        _graphics.IsFullScreen = true;
         _graphics.HardwareModeSwitch = false;
+        _graphics.ApplyChanges();
+    }
+
+    public void ToggleWindowedMode()
+    {
+        _graphics.IsFullScreen = false;
         _graphics.ApplyChanges();
     }
 
@@ -41,11 +48,20 @@ public class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
+        KeyboardState currentState = Keyboard.GetState();
 
         // TODO: Add your update logic here
+        if (currentState.IsKeyDown(Keys.Escape))
+        Exit();
 
+        if (currentState.IsKeyDown(Keys.F11) && _previousState.IsKeyUp(Keys.F11))
+        {
+            if (_graphics.IsFullScreen == false)
+                ToggleFullScreen();
+            else
+                ToggleWindowedMode();
+        }
+        _previousState = currentState;
         base.Update(gameTime);
     }
 
