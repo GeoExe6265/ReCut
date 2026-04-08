@@ -1,34 +1,31 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGameLibrary;
 
 namespace ReCut;
 
-public class Game1 : Game
+public class Game1 : Core
 {
-    private GraphicsDeviceManager _graphics;
-    private SpriteBatch _spriteBatch;
     private KeyboardState _previousState;
-    public Game1()
+    private Texture2D _character;
+    public Game1() : base("ReCut", 1280, 720, false)
     {
-        _graphics = new GraphicsDeviceManager(this);
-        Content.RootDirectory = "Content";
+        Content.RootDirectory = "Content/images";
         IsMouseVisible = true;
-
-        _graphics.IsFullScreen = false;
     }
 
     public void ToggleFullScreen()
     {
-        _graphics.IsFullScreen = true;
-        _graphics.HardwareModeSwitch = false;
-        _graphics.ApplyChanges();
+        Graphics.IsFullScreen = true;
+        Graphics.HardwareModeSwitch = false;
+        Graphics.ApplyChanges();
     }
 
     public void ToggleWindowedMode()
     {
-        _graphics.IsFullScreen = false;
-        _graphics.ApplyChanges();
+        Graphics.IsFullScreen = false;
+        Graphics.ApplyChanges();
     }
 
     // ТЕХ ЧАСТЬ НЕ ТРОГАТЬ СВОИМИ РУЧКАМИ!
@@ -41,9 +38,9 @@ public class Game1 : Game
 
     protected override void LoadContent()
     {
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
 
         // TODO: use this.Content to load your game content here
+        _character = Content.Load<Texture2D>("character");
     }
 
     protected override void Update(GameTime gameTime)
@@ -56,11 +53,12 @@ public class Game1 : Game
 
         if (currentState.IsKeyDown(Keys.F11) && _previousState.IsKeyUp(Keys.F11))
         {
-            if (_graphics.IsFullScreen == false)
+            if (Graphics.IsFullScreen == false)
                 ToggleFullScreen();
             else
                 ToggleWindowedMode();
         }
+        
         _previousState = currentState;
         base.Update(gameTime);
     }
@@ -70,6 +68,15 @@ public class Game1 : Game
         GraphicsDevice.Clear(Color.CornflowerBlue);
 
         // TODO: Add your drawing code here
+        SpriteBatch.Begin();
+        SpriteBatch.Draw(
+        _character,
+        new Vector2(
+            (Window.ClientBounds.Width * 0.5f) - (_character.Width * 0.5f),
+            (Window.ClientBounds.Height * 0.5f) - (_character.Height * 0.5f)),
+        Color.White
+        );
+        SpriteBatch.End();
 
         base.Draw(gameTime);
     }
