@@ -10,10 +10,12 @@
 
 #-------------------------------- References --------------------------------#
 
+/reference:C:\Users\FakauMir\.nuget\packages\monogame.extended\5.5.0\lib\net8.0\MonoGame.Extended.dll
+/reference:C:\Users\FakauMir\.nuget\packages\monogame.extended.content.pipeline\5.5.0\lib\net8.0\MonoGame.Extended.Content.Pipeline.dll
 
 #---------------------------------- Content ---------------------------------#
 
-#begin images/logo.png
+#begin images/character.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
@@ -23,5 +25,58 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:images/logo.png;images/character.png
+/build:images/character.png
+
+#begin maps/level1.tmx
+/importer:TiledMapImporter
+/processor:TiledMapProcessor
+/build:maps/level1.tmx
+
+#begin maps/tiles/CastleTiles.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:maps/tiles/CastleTiles.png
+
+#begin maps/tiles/ExtraTiles1.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:maps/tiles/ExtraTiles1.png
+
+#begin maps/tiles/InfernoTiles.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:maps/tiles/InfernoTiles.png
+
+#begin maps/tiles/SewerTiles.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:maps/tiles/SewerTiles.png
 
