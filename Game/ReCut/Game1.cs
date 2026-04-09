@@ -16,8 +16,10 @@ public class Game1 : Core
     private TiledMapRenderer _mapRenderer;
     private List<Rectangle> _collisionRectangles = new List<Rectangle>();
     private Vector2 _pos;
+    private Vector2 _cameraPos;
     private Vector2 _velocity;
     private bool _onGround;
+    private float zoom = 2.5f;
     private const float Gravity = 1600f;
     private const float JumpForce = -600f;
     private const float Speed = 350f;
@@ -88,6 +90,17 @@ public class Game1 : Core
                 ToggleWindowedMode();
         }
         
+        float zoom = 2.5f;
+        float screenWidth = GraphicsDevice.Viewport.Width / zoom;
+        float screenHeight = GraphicsDevice.Viewport.Height / zoom;
+        _cameraPos.X = _pos.X - (screenWidth / 2);
+        _cameraPos.Y = _pos.Y - (screenHeight / 2);
+        if (_cameraPos.X < 0)
+        _cameraPos.X = 0;
+        if (_cameraPos.Y < 0)
+        _cameraPos.Y = 0;
+
+        _mapRenderer.Update(gameTime);
         _previousState = currentState;
         base.Update(gameTime);
     }
@@ -95,11 +108,12 @@ public class Game1 : Core
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.CornflowerBlue);
+        var cameraMatrix = Matrix.CreateTranslation(-_cameraPos.X, -_cameraPos.Y, 0) * Matrix.CreateScale(zoom);
 
         // TODO: Add your drawing code here
-        _mapRenderer.Draw();
+        _mapRenderer.Draw(cameraMatrix);
 
-        SpriteBatch.Begin();
+        SpriteBatch.Begin(transformMatrix: cameraMatrix, samplerState: SamplerState.PointClamp);
         SpriteBatch.Draw(_character, _pos, Color.White);
         SpriteBatch.End();
 
