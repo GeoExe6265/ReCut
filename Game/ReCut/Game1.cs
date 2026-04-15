@@ -24,8 +24,10 @@ public class Game1 : Core
     private SpriteEffects _facing = SpriteEffects.None;
     private bool _onGround;
     private bool _isAttacking = false;
+    private bool _isOnCooldown;
     private float zoom = 2.5f;
     private float _attackAnimTimer = 0f;
+    private float _attackCooldown = 0f;
     private float _animTimer;
     private float _attackDistanceLeft;
     private int _frameWidth = 64;
@@ -37,6 +39,7 @@ public class Game1 : Core
     private const float Gravity = 1600f;
     private const float JumpForce = -600f;
     private const float Speed = 350f;
+    private const float AttackCooldownTime = 0.75f;
     public Game1() : base("ReCut", 1280, 720, false)
     {
         Content.RootDirectory = "Content";
@@ -98,14 +101,39 @@ public class Game1 : Core
         if (currentState.IsKeyDown(Keys.Escape))
             Exit();
 
-        if (currentMouseState.LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released && !_isAttacking)
+        if (Graphics.IsFullScreen != true)
+        {
+            if (currentState.IsKeyDown(Keys.F11) && _previousState.IsKeyUp(Keys.F11))
+            {
+                ToggleFullScreen();
+            }
+        }
+
+        else
+        {
+            if (currentState.IsKeyDown(Keys.F11) && _previousState.IsKeyUp(Keys.F11))
+            {
+                ToggleWindowedMode();
+            }
+        }
+
+        if (_attackCooldown > 0)
+        {
+            _attackCooldown -= dt;
+        }
+    
+        if (currentMouseState.LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released && !_isAttacking && _attackCooldown <= 0) 
         {
             _isAttacking = true;
+            _attackCooldown = AttackCooldownTime;
             _attackAnimState = 0;
             _currentRow = 8;
             _currentFrame = 0;
             _attackDir = mouseWorldPos - (_pos + new Vector2(32, 16));
-            if (_attackDir != Vector2.Zero) _attackDir.Normalize();
+            if (_attackDir != Vector2.Zero)
+            {
+                _attackDir.Normalize();
+            }
             _attackDistanceLeft = 150f;
 
             if (_attackDir.X < 0)
@@ -120,7 +148,10 @@ public class Game1 : Core
             {
                 _currentFrame = 0;
                 float attackDistance = 900f * dt;
-                if (attackDistance > _attackDistanceLeft) attackDistance = _attackDistanceLeft;
+                if (attackDistance > _attackDistanceLeft)
+                {
+                    attackDistance = _attackDistanceLeft;
+                }
 
                 Vector2 nextPos = _pos + _attackDir * attackDistance;
                 _attackDistanceLeft -= attackDistance;
@@ -149,7 +180,10 @@ public class Game1 : Core
                 {
                     _currentFrame++;
                     _attackAnimTimer = 0;
-                    if (_currentFrame > 2) _isAttacking = false;
+                    if (_currentFrame > 2)
+                    {
+                        _isAttacking = false;
+                    }
                 }
             }
         }
