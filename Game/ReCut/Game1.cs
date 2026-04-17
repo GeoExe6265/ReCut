@@ -14,8 +14,11 @@ public class Game1 : Core
     private KeyboardState _previousState;
     private MouseState _previousMouseState;
     private Texture2D _character;
+    private Target _dummy;
     private TiledMap _map;
     private TiledMapRenderer _mapRenderer;
+    private List<Texture2D> _dummyIdleFrames = new List<Texture2D>();
+    private List<Texture2D> _dummyHitFrames = new List<Texture2D>();
     private List<Rectangle> _collisionRectangles = new List<Rectangle>();
     private Vector2 _pos;
     private Vector2 _cameraPos;
@@ -25,9 +28,11 @@ public class Game1 : Core
     private bool _onGround;
     private bool _isAttacking = false;
     private bool _isOnCooldown;
+    private bool _isOnWall;
     private float zoom = 2.5f;
     private float _attackAnimTimer = 0f;
     private float _attackCooldown = 0f;
+    private float _wallJumpTimer = 0f;
     private float _animTimer;
     private float _attackDistanceLeft;
     private int _frameWidth = 64;
@@ -35,6 +40,7 @@ public class Game1 : Core
     private int _framesInRow = 7;
     private int _previousRow = -1;
     private int _attackAnimState = 0;
+    private int _wallDirection = 0;
     private int _currentFrame, _currentRow;
     private const float Gravity = 1600f;
     private const float JumpForce = -600f;
@@ -75,6 +81,14 @@ public class Game1 : Core
         _map = Content.Load<TiledMap>("maps/level1");
         _mapRenderer = new TiledMapRenderer(GraphicsDevice, _map);
 
+        for (int i = 1; i <= 4; i++) 
+        _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
+
+        for (int i = 1; i <= 5; i++) 
+            _dummyHitFrames.Add(Content.Load<Texture2D>($"enemies/dummy/dummy_hit{i}"));
+
+        _dummy = new Target(_dummyIdleFrames, _dummyHitFrames, new Vector2(500, 497));
+
         var collisionLayer = _map.GetLayer<TiledMapObjectLayer>("Collision");
         foreach (var obj in collisionLayer.Objects)
         {
@@ -97,6 +111,7 @@ public class Game1 : Core
         MouseState currentMouseState = Mouse.GetState();
         Vector2 mouseWorldPos = (currentMouseState.Position.ToVector2() / zoom) + _cameraPos;
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        bool _jumpPressed = (currentState.IsKeyDown(Keys.Space) && _previousState.IsKeyUp(Keys.Space)) || (currentState.IsKeyDown(Keys.W) && _previousState.IsKeyUp(Keys.W));
 
         if (currentState.IsKeyDown(Keys.Escape))
             Exit();
@@ -165,6 +180,13 @@ public class Game1 : Core
                         break;
                     }
 
+                if (attackHitbox.Intersects(_dummy.Hitbox))
+                {
+                    _dummy.IsHit = true; 
+                    hitWall = true;
+                    _attackCooldown = 0;
+                }
+
                 if (hitWall || _attackDistanceLeft <= 0)
                 {
                     _attackAnimState = 1;
@@ -190,72 +212,140 @@ public class Game1 : Core
 
         else 
         {
-            _velocity.X = 0;
-            _velocity.Y += Gravity * dt;
-
-            if (currentState.IsKeyDown(Keys.A))
             {
-                _velocity.X = -Speed;
-                _facing = SpriteEffects.FlipHorizontally;
-            }
+                _velocity.Y += Gravity * dt;
 
-            else if (currentState.IsKeyDown(Keys.D))
-            {
-                _velocity.X = Speed;
-                _facing = SpriteEffects.None;
-            }
-
-            if ((currentState.IsKeyDown(Keys.Space) || currentState.IsKeyDown(Keys.W)) && _onGround)
-            {
-                _velocity.Y = JumpForce;
-                _onGround = false;
-            }
-
-            float nextX = _pos.X + _velocity.X * dt;
-            Rectangle nextHitboxX = new Rectangle((int)nextX + 24, (int)_pos.Y + 14, 16, 14); 
-            bool canMove = true;
-            
-            foreach (var rect in _collisionRectangles)
-                if (nextHitboxX.Intersects(rect))
+                if (_wallJumpTimer > 0)
                 {
-                    canMove = false;
-                    _velocity.X = 0;
-                    break;
+                    _wallJumpTimer -= dt;
                 }
-            
-            if (canMove)
-                _pos.X = nextX;
-
-            _pos.Y += _velocity.Y * dt;
-            bool foundGround = false; 
-            Rectangle feetHitbox = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 16, 16, 16);
-
-            foreach (var rect in _collisionRectangles)
-            {
-                if (feetHitbox.Intersects(rect))
+                else 
                 {
-                    if (_velocity.Y >= 0)
+                    _velocity.X = 0; 
+
+                    if (currentState.IsKeyDown(Keys.A)) 
                     {
-                        _pos.Y = rect.Top - 31;
-                        _velocity.Y = 0;
-                        foundGround = true;
+                        _velocity.X = -Speed;
+                        _facing = SpriteEffects.FlipHorizontally;
                     }
-                    
-                    else
+                    else if (currentState.IsKeyDown(Keys.D)) 
                     {
-                        _pos.Y = rect.Bottom - 14;
-                        _velocity.Y = 0;
+                        _velocity.X = Speed;
+                        _facing = SpriteEffects.None;
                     }
                 }
-            }
-            _onGround = foundGround;
 
-            if (!_onGround)
+                float nextX = _pos.X + _velocity.X * dt;
+                Rectangle wallHitbox = new Rectangle((int)nextX + 24, (int)_pos.Y + 10, 16, 14); 
+                bool canMoveX = true;
+
+                foreach (var rect in _collisionRectangles)
+                {
+                    if (wallHitbox.Intersects(rect))
+                    {
+                        canMoveX = false;
+                        if (_velocity.X > 0)
+                            _pos.X = rect.Left - 40; 
+                        else if (_velocity.X < 0)
+                            _pos.X = rect.Right - 24;
+                        _velocity.X = 0;
+                        break;
+                    }
+                }
+
+                if (canMoveX)
+                    _pos.X = nextX;
+
+                _pos.Y += _velocity.Y * dt;
+                bool foundGround = false; 
+                Rectangle feetHitbox = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 28, 16, 4);
+
+                foreach (var rect in _collisionRectangles)
+                {
+                    if (feetHitbox.Intersects(rect))
+                    {
+                        if (_velocity.Y >= 0)
+                        {
+                            _pos.Y = rect.Top - 31;
+                            _velocity.Y = 0;
+                            foundGround = true;
+                        }
+
+                        else
+                        {
+                            _pos.Y = rect.Bottom - 10;
+                            _velocity.Y = 0;
+                        }
+                    }
+                }
+                _onGround = foundGround;
+
+                if (_jumpPressed && _onGround)
+                {
+                    _velocity.Y = JumpForce;
+                    _onGround = false;
+                }
+
+                _isOnWall = false;
+                _wallDirection = 0;
+                if (!_onGround && _velocity.Y > 0) 
+                {
+                    Rectangle wallCheckLeft = new Rectangle((int)_pos.X + 21, (int)_pos.Y + 10, 3, 16);
+                    Rectangle wallCheckRight = new Rectangle((int)_pos.X + 40, (int)_pos.Y + 10, 3, 16);
+
+                    foreach (var rect in _collisionRectangles)
+                    {
+                        if (wallCheckLeft.Intersects(rect))
+                        {
+                            _isOnWall = true;
+                            _wallDirection = -1;
+                            break;
+                        }
+
+                        if (wallCheckRight.Intersects(rect))
+                        {
+                            _isOnWall = true;
+                            _wallDirection = 1;
+                            break;
+                        }
+                    }
+                }
+
+                if (_isOnWall && _jumpPressed)
+                {
+                    _onGround = false;
+                    _isOnWall = false;
+                    _velocity.Y = JumpForce;
+                    _velocity.X = -_wallDirection * (Speed * 0.65f); 
+                    _wallJumpTimer = 0.25f; 
+                }
+            }
+
+            if (_isAttacking)
+            {
+                _currentRow = 8;
+                _framesInRow = 3;
+            }
+
+            if (_isOnWall)
+            {
+                _currentRow = 3;
+                _currentFrame = 0;
+                _framesInRow = 1;
+
+                if (_wallDirection == -1)
+                    _facing = SpriteEffects.FlipHorizontally;
+                else
+                    _facing = SpriteEffects.None;
+            }
+
+
+            else if (!_onGround)
             {
                 _currentRow = 2;
                 _framesInRow = 3;
             }
-            
+
             else if (Math.Abs(_velocity.X) > 10f)
             {
                 _currentRow = 4;
@@ -268,23 +358,22 @@ public class Game1 : Core
                 _framesInRow = 7;
             }
 
-            _animTimer += dt;
-            if (_animTimer > 0.1f)
+            if (!_isOnWall && !_isAttacking)
             {
-                _currentFrame = (_currentFrame + 1) % _framesInRow;
-                _animTimer = 0;
+                _animTimer += dt;
+                if (_animTimer > 0.1f)
+                {
+                    _currentFrame = (_currentFrame + 1) % _framesInRow;
+                    _animTimer = 0;
+                }
             }
         }
 
-        if (_previousRow != _currentRow)
-        {
-            _currentFrame = 0;
-            _animTimer = 0;
-        }
         _previousRow = _currentRow;
         UpdateCamera();
 
         _mapRenderer.Update(gameTime);
+        _dummy.Update(gameTime);
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -310,13 +399,14 @@ public class Game1 : Core
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.CornflowerBlue);
+        
         var cameraMatrix = Matrix.CreateTranslation(-_cameraPos.X, -_cameraPos.Y, 0) * Matrix.CreateScale(zoom);
         Rectangle sourceRect = new Rectangle(_currentFrame * _frameWidth, _currentRow * _frameHeight, _frameWidth, _frameHeight);
-        
-        // TODO: Add your drawing code here
         _mapRenderer.Draw(cameraMatrix);
 
         SpriteBatch.Begin(transformMatrix: cameraMatrix, samplerState: SamplerState.PointClamp);
+        _dummy.Draw(SpriteBatch);
+
         SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
         SpriteBatch.End();
 
