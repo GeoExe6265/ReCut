@@ -16,10 +16,12 @@ public class Game1 : Core
     private Texture2D _character;
     private Target _dummy;
     private TiledMap _map;
+    private SpriteFont _damageFont;
     private TiledMapRenderer _mapRenderer;
     private List<Texture2D> _dummyIdleFrames = new List<Texture2D>();
     private List<Texture2D> _dummyHitFrames = new List<Texture2D>();
     private List<Rectangle> _collisionRectangles = new List<Rectangle>();
+    private List<DamageText> _damageTexts = new List<DamageText>();
     private Vector2 _pos;
     private Vector2 _cameraPos;
     private Vector2 _velocity;
@@ -80,6 +82,7 @@ public class Game1 : Core
         // TODO: use this.Content to load your game content here
         _character = Content.Load<Texture2D>("images/character");
         _map = Content.Load<TiledMap>("maps/level1");
+        _damageFont = Content.Load<SpriteFont>("fonts/DamageFont");
         _mapRenderer = new TiledMapRenderer(GraphicsDevice, _map);
 
         for (int i = 1; i <= 4; i++) 
@@ -193,6 +196,7 @@ public class Game1 : Core
                     hitWall = true;
                     _attackCooldown = 0;
                     _hitStopTimer = 0.2f;
+                    _damageTexts.Add(new DamageText(_dummy.Position + new Vector2(16, -10), 5));
                 }
 
                 if (hitWall || _attackDistanceLeft <= 0)
@@ -391,6 +395,12 @@ public class Game1 : Core
                 _currentFrame = 0;
         }
 
+        for (int i = _damageTexts.Count - 1; i >= 0; i--)
+        {
+            _damageTexts[i].Update(gameTime);
+            if (_damageTexts[i].IsDead) _damageTexts.RemoveAt(i);
+        }
+
         _previousRow = _currentRow;
         UpdateCamera();
 
@@ -421,7 +431,7 @@ public class Game1 : Core
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.CornflowerBlue);
-        
+
         var cameraMatrix = Matrix.CreateTranslation(-_cameraPos.X, -_cameraPos.Y, 0) * Matrix.CreateScale(zoom);
         Rectangle sourceRect = new Rectangle(_currentFrame * _frameWidth, _currentRow * _frameHeight, _frameWidth, _frameHeight);
         _mapRenderer.Draw(cameraMatrix);
@@ -430,6 +440,10 @@ public class Game1 : Core
         _dummy.Draw(SpriteBatch);
 
         SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
+        foreach (var text in _damageTexts)
+        {
+            text.Draw(SpriteBatch, _damageFont);
+        }
         SpriteBatch.End();
 
         base.Draw(gameTime);
