@@ -33,6 +33,7 @@ public class Game1 : Core
     private float _attackAnimTimer = 0f;
     private float _attackCooldown = 0f;
     private float _wallJumpTimer = 0f;
+    private float _hitStopTimer = 0f;
     private float _animTimer;
     private float _attackDistanceLeft;
     private int _frameWidth = 64;
@@ -113,6 +114,12 @@ public class Game1 : Core
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         bool _jumpPressed = (currentState.IsKeyDown(Keys.Space) && _previousState.IsKeyUp(Keys.Space)) || (currentState.IsKeyDown(Keys.W) && _previousState.IsKeyUp(Keys.W));
 
+        if (_hitStopTimer > 0)
+        {
+            _hitStopTimer -= dt;
+            return;
+        }
+
         if (currentState.IsKeyDown(Keys.Escape))
             Exit();
 
@@ -185,6 +192,7 @@ public class Game1 : Core
                     _dummy.IsHit = true; 
                     hitWall = true;
                     _attackCooldown = 0;
+                    _hitStopTimer = 0.2f;
                 }
 
                 if (hitWall || _attackDistanceLeft <= 0)
@@ -198,13 +206,16 @@ public class Game1 : Core
             else
             {
                 _attackAnimTimer += dt;
-                if (_attackAnimTimer > 0.06f)
+                if (_attackAnimTimer > 0.1f)
                 {
                     _currentFrame++;
                     _attackAnimTimer = 0;
                     if (_currentFrame > 2)
                     {
                         _isAttacking = false;
+                        _currentFrame = 0;
+                        _animTimer = 0;
+                        _velocity = Vector2.Zero;
                     }
                 }
             }
@@ -330,6 +341,8 @@ public class Game1 : Core
             {
                 _currentRow = 8;
                 _framesInRow = 3;
+                if (_currentFrame >= _framesInRow) 
+                    _currentFrame = 0;
             }
 
             if (_isOnWall)
@@ -372,6 +385,9 @@ public class Game1 : Core
                     _animTimer = 0;
                 }
             }
+
+            if (_currentFrame >= _framesInRow)
+                _currentFrame = 0;
         }
 
         _previousRow = _currentRow;
