@@ -236,7 +236,7 @@ public class Game1 : Core
                 }
 
                 float nextX = _pos.X + _velocity.X * dt;
-                Rectangle wallHitbox = new Rectangle((int)nextX + 24, (int)_pos.Y + 10, 16, 14); 
+                Rectangle wallHitbox = new Rectangle((int)nextX + 24, (int)_pos.Y + 18, 16, 6); 
                 bool canMoveX = true;
 
                 foreach (var rect in _collisionRectangles)
@@ -256,27 +256,32 @@ public class Game1 : Core
                 if (canMoveX)
                     _pos.X = nextX;
 
-                _pos.Y += _velocity.Y * dt;
+                float nextY = _pos.Y + _velocity.Y * dt;
                 bool foundGround = false; 
-                Rectangle feetHitbox = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 28, 16, 4);
+                Rectangle nextHeadHitbox = new Rectangle((int)_pos.X + 24, (int)nextY + 12, 16, 4);
+                Rectangle nextFeetHitbox = new Rectangle((int)_pos.X + 24, (int)nextY + 28, 16, 4);
 
                 foreach (var rect in _collisionRectangles)
                 {
-                    if (feetHitbox.Intersects(rect))
+                    if (_velocity.Y < 0 && nextHeadHitbox.Intersects(rect))
                     {
-                        if (_velocity.Y >= 0)
-                        {
-                            _pos.Y = rect.Top - 31;
-                            _velocity.Y = 0;
-                            foundGround = true;
-                        }
-
-                        else
-                        {
-                            _pos.Y = rect.Bottom - 10;
-                            _velocity.Y = 0;
-                        }
+                        _pos.Y = rect.Bottom - 12;
+                        _velocity.Y = 0;
+                        nextY = _pos.Y;
                     }
+
+                    if (_velocity.Y >= 0 && nextFeetHitbox.Intersects(rect))
+                    {
+                        _pos.Y = rect.Top - 31;
+                        _velocity.Y = 0;
+                        foundGround = true;
+                        nextY = _pos.Y;
+                    }
+                }
+
+                if (!foundGround && _velocity.Y != 0)
+                {
+                    _pos.Y = nextY;
                 }
                 _onGround = foundGround;
 
