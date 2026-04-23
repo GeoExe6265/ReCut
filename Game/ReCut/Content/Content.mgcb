@@ -87,6 +87,13 @@
 /processorParam:TextureFormat=Color
 /build:enemies/dummy/dummy_idle.png
 
+#begin fonts/DamageFont.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:fonts/DamageFont.spritefont
+
 #begin images/character.png
 /importer:TextureImporter
 /processor:TextureProcessor

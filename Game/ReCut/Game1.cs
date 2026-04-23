@@ -347,6 +347,7 @@ public class Game1 : Core
 
             if (_isOnWall)
             {
+                _velocity.Y -= _velocity.Y * 0.3f;
                 _currentRow = 3;
                 _currentFrame = 0;
                 _framesInRow = 1;
