@@ -20,7 +20,8 @@ public class Game1 : Core
     private TiledMapRenderer _mapRenderer;
     private List<Texture2D> _dummyIdleFrames = new List<Texture2D>();
     private List<Texture2D> _dummyHitFrames = new List<Texture2D>();
-    private List<Rectangle> _collisionRectangles = new List<Rectangle>();
+    private List<CollisionObject> _collisionObjects = new List<CollisionObject>();
+    private List<LevelExit> _levelExits = new List<LevelExit>();
     private List<DamageText> _damageTexts = new List<DamageText>();
     private Vector2 _pos;
     private Vector2 _cameraPos;
@@ -45,6 +46,7 @@ public class Game1 : Core
     private int _attackAnimState = 0;
     private int _wallDirection = 0;
     private int _currentFrame, _currentRow;
+    private string _currentLevelName;
     private const float Gravity = 1600f;
     private const float JumpForce = -600f;
     private const float Speed = 350f;
@@ -53,6 +55,19 @@ public class Game1 : Core
     {
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+    }
+
+    public struct CollisionObject 
+    {
+        public Rectangle Bounds;
+        public bool IsOneWay;
+    }
+
+    public struct LevelExit
+    {
+        public Rectangle Bounds;
+        public string TargetLevel;
+        public string TargetSpawn;
     }
 
     public void ToggleFullScreen()
@@ -68,6 +83,47 @@ public class Game1 : Core
         Graphics.ApplyChanges();
     }
 
+    // Я ЭТУ ПРОГРУЗКУ ДЕЛАЛ 2 С ПОЛОВИНОЙ ЧАСА. МОЖНО МНЕ ОТДОХНУТЬ? ;-;
+    private void LoadLevel(string levelName, string spawnName)
+    {
+        _currentLevelName = levelName;
+        _collisionObjects.Clear();
+        _levelExits.Clear();
+        _map = Content.Load<TiledMap>("maps/" + levelName);
+        _mapRenderer = new TiledMapRenderer(GraphicsDevice, _map);
+        var objects = _map.GetLayer<TiledMapObjectLayer>("Collision").Objects;
+
+        foreach (var obj in objects)
+        {
+            if (obj.Name == spawnName)
+            {
+                _pos = obj.Position;
+                break; 
+            }
+        }
+
+        foreach (var obj in objects)
+        {
+            if (obj.Type == "LevelExit")
+            {
+                _levelExits.Add(new LevelExit
+                {
+                    Bounds = new Rectangle((int)obj.Position.X, (int)obj.Position.Y, (int)obj.Size.Width, (int)obj.Size.Height),
+                    TargetLevel = obj.Properties.ContainsKey("TargetLevel") ? obj.Properties["TargetLevel"] : "",
+                    TargetSpawn = obj.Name
+                });
+            }
+
+            else if (obj.Name != "Spawn" && obj.Name != "SpawnUp" && obj.Name != "SpawnDown")
+            {
+                _collisionObjects.Add(new CollisionObject {
+                    Bounds = new Rectangle((int)obj.Position.X, (int)obj.Position.Y, (int)obj.Size.Width, (int)obj.Size.Height),
+                    IsOneWay = obj.Type == "OneWay"
+                });
+            }
+        }
+    }
+
     // ТЕХ ЧАСТЬ НЕ ТРОГАТЬ СВОИМИ РУЧКАМИ!
     protected override void Initialize()
     {
@@ -79,34 +135,19 @@ public class Game1 : Core
     protected override void LoadContent()
     {
         base.LoadContent();
-        // TODO: use this.Content to load your game content here
+
         _character = Content.Load<Texture2D>("images/character");
-        _map = Content.Load<TiledMap>("maps/level1");
         _damageFont = Content.Load<SpriteFont>("fonts/DamageFont");
-        _mapRenderer = new TiledMapRenderer(GraphicsDevice, _map);
 
         for (int i = 1; i <= 4; i++) 
-        _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
+            _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
 
         for (int i = 1; i <= 5; i++) 
             _dummyHitFrames.Add(Content.Load<Texture2D>($"enemies/dummy/dummy_hit{i}"));
 
         _dummy = new Target(_dummyIdleFrames, _dummyHitFrames, new Vector2(500, 497));
 
-        var collisionLayer = _map.GetLayer<TiledMapObjectLayer>("Collision");
-        foreach (var obj in collisionLayer.Objects)
-        {
-            if (obj.Name == "Spawn")
-            {
-                _pos = obj.Position;   
-            }
-
-            else
-            {
-                _collisionRectangles.Add(new Rectangle((int)obj.Position.X, (int)obj.Position.Y, (int)obj.Size.Width, (int)obj.Size.Height));
-            }
-
-        }
+        LoadLevel("level1", "Spawn");
     }
 
     protected override void Update(GameTime gameTime)
@@ -155,6 +196,7 @@ public class Game1 : Core
             _currentRow = 8;
             _currentFrame = 0;
             _attackDir = mouseWorldPos - (_pos + new Vector2(32, 16));
+
             if (_attackDir != Vector2.Zero)
             {
                 _attackDir.Normalize();
@@ -163,6 +205,7 @@ public class Game1 : Core
 
             if (_attackDir.X < 0)
                 _facing = SpriteEffects.FlipHorizontally;
+
             else if (_attackDir.X > 0)
                 _facing = SpriteEffects.None;
         }
@@ -183,12 +226,17 @@ public class Game1 : Core
 
                 Rectangle attackHitbox = new Rectangle((int)nextPos.X + 24, (int)nextPos.Y + 14, 16, 18);
                 bool hitWall = false;
-                foreach (var rect in _collisionRectangles)
-                    if (attackHitbox.Intersects(rect))
+
+                foreach (var collisionAttack in _collisionObjects)
+                {
+                    if (collisionAttack.IsOneWay) continue;
+
+                    if (attackHitbox.Intersects(collisionAttack.Bounds))
                     {
                         hitWall = true;
                         break;
                     }
+                }
 
                 if (attackHitbox.Intersects(_dummy.Hitbox))
                 {
@@ -207,6 +255,7 @@ public class Game1 : Core
                 }
                 else _pos = nextPos;
             }
+            
             else
             {
                 _attackAnimTimer += dt;
@@ -254,15 +303,18 @@ public class Game1 : Core
                 Rectangle wallHitbox = new Rectangle((int)nextX + 24, (int)_pos.Y + 18, 16, 6); 
                 bool canMoveX = true;
 
-                foreach (var rect in _collisionRectangles)
+                foreach (var collisionX in _collisionObjects)
                 {
-                    if (wallHitbox.Intersects(rect))
+                    if (collisionX.IsOneWay)
+                        continue;
+
+                    if (wallHitbox.Intersects(collisionX.Bounds))
                     {
                         canMoveX = false;
                         if (_velocity.X > 0)
-                            _pos.X = rect.Left - 40; 
+                            _pos.X = collisionX.Bounds.Left - 40; 
                         else if (_velocity.X < 0)
-                            _pos.X = rect.Right - 24;
+                            _pos.X = collisionX.Bounds.Right - 24;
                         _velocity.X = 0;
                         break;
                     }
@@ -276,23 +328,45 @@ public class Game1 : Core
                 Rectangle nextHeadHitbox = new Rectangle((int)_pos.X + 24, (int)nextY + 12, 16, 4);
                 Rectangle nextFeetHitbox = new Rectangle((int)_pos.X + 24, (int)nextY + 28, 16, 4);
 
-                foreach (var rect in _collisionRectangles)
+                foreach (var collisionY in _collisionObjects)
                 {
-                    if (_velocity.Y < 0 && nextHeadHitbox.Intersects(rect))
+                    Rectangle rect = collisionY.Bounds;
+
+                    if (!collisionY.IsOneWay && _velocity.Y < 0 && nextHeadHitbox.Intersects(rect))
                     {
-                        _pos.Y = rect.Bottom - 12;
+                        _pos.Y = rect.Bottom - 12; 
                         _velocity.Y = 0;
                         nextY = _pos.Y;
                     }
 
                     if (_velocity.Y >= 0 && nextFeetHitbox.Intersects(rect))
                     {
-                        _pos.Y = rect.Top - 31;
-                        _velocity.Y = 0;
-                        foundGround = true;
-                        nextY = _pos.Y;
+                        if (collisionY.IsOneWay)
+                        {
+                            if (currentState.IsKeyDown(Keys.S))
+                            {
+                                continue;
+                            }
+
+                            if ((_pos.Y + 31) <= rect.Top)
+                            {
+                                _pos.Y = rect.Top - 31;
+                                _velocity.Y = 0;
+                                foundGround = true;
+                                nextY = _pos.Y;
+                            }
+                        }
+
+                        else
+                        {
+                            _pos.Y = rect.Top - 31;
+                            _velocity.Y = 0;
+                            foundGround = true;
+                            nextY = _pos.Y;
+                        }
                     }
                 }
+
 
                 if (!foundGround && _velocity.Y != 0)
                 {
@@ -308,21 +382,25 @@ public class Game1 : Core
 
                 _isOnWall = false;
                 _wallDirection = 0;
+
                 if (!_onGround && _velocity.Y > 0) 
                 {
-                    Rectangle wallCheckLeft = new Rectangle((int)_pos.X + 21, (int)_pos.Y + 10, 3, 16);
-                    Rectangle wallCheckRight = new Rectangle((int)_pos.X + 40, (int)_pos.Y + 10, 3, 16);
+                    Rectangle wallCheckLeft = new Rectangle((int)_pos.X + 21, (int)_pos.Y + 18, 3, 6);
+                    Rectangle wallCheckRight = new Rectangle((int)_pos.X + 40, (int)_pos.Y + 18, 3, 6);
 
-                    foreach (var rect in _collisionRectangles)
+                    foreach (var collisionWall in _collisionObjects)
                     {
-                        if (wallCheckLeft.Intersects(rect))
+                        if (collisionWall.IsOneWay)
+                            continue;
+                            
+                        if (wallCheckLeft.Intersects(collisionWall.Bounds))
                         {
                             _isOnWall = true;
                             _wallDirection = -1;
                             break;
                         }
 
-                        if (wallCheckRight.Intersects(rect))
+                        if (wallCheckRight.Intersects(collisionWall.Bounds))
                         {
                             _isOnWall = true;
                             _wallDirection = 1;
@@ -338,6 +416,32 @@ public class Game1 : Core
                     _velocity.Y = JumpForce;
                     _velocity.X = -_wallDirection * (Speed * 0.65f); 
                     _wallJumpTimer = 0.25f; 
+                }
+            }
+
+            Rectangle playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
+
+            foreach (var exit in _levelExits)
+            {
+                if (playerRect.Intersects(exit.Bounds))
+                {
+                    string nextSpawn = "Spawn";
+                    if (exit.TargetSpawn == "ExitUp")
+                    {
+                        nextSpawn = "SpawnDown";
+                    }
+
+                    else if (exit.TargetSpawn == "ExitDown")
+                    {
+                        nextSpawn = "SpawnUp";
+                    }
+
+                    if (!string.IsNullOrEmpty(exit.TargetLevel))
+                    {
+                        LoadLevel(exit.TargetLevel, nextSpawn);
+                        UpdateCamera();
+                    }
+                    break;
                 }
             }
 
