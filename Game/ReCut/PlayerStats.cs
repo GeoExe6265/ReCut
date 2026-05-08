@@ -26,7 +26,8 @@ public class PlayerStats
         if (Mana < MaxMana)
         {
             Mana += ManaRegenSpeed * dt;
-            if (Mana > MaxMana) Mana = MaxMana;
+            if (Mana > MaxMana)
+                Mana = MaxMana;
         }
     }
 
@@ -45,18 +46,21 @@ public class PlayerStats
     public void TakeDamage(float amount)
     {
         Health -= amount;
-        if (Health < 0) Health = 0;
+        if (Health < 0)
+            Health = 0;
     }
 
     public void UseMana(float amount)
     {
         Mana -= amount;
-        if (Mana < 0) Mana = 0;
+        if (Mana < 0)
+            Mana = 0;
     }
 
     public void Heal(float amount)
     {
         Health += amount;
-        if (Health > MaxHealth) Health = MaxHealth;
+        if (Health > MaxHealth)
+            Health = MaxHealth;
     }
 }

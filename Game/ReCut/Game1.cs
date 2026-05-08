@@ -9,15 +9,23 @@ using System.Collections.Generic;
 
 namespace ReCut;
 
+public struct CollisionObject 
+    {
+        public Rectangle Bounds;
+        public bool IsOneWay;
+    }
 public class Game1 : Core
 {
     private KeyboardState _previousState;
     private MouseState _previousMouseState;
     private Texture2D _character;
     private Target _dummy;
+    private Skeleton _skeleton;
+    private Texture2D _skeletEnemy, _skeletSlash;
     private TiledMap _map;
     private SpriteFont _damageFont;
     private TiledMapRenderer _mapRenderer;
+    private PlayerStats _stats;
     private List<Texture2D> _dummyIdleFrames = new List<Texture2D>();
     private List<Texture2D> _dummyHitFrames = new List<Texture2D>();
     private List<CollisionObject> _collisionObjects = new List<CollisionObject>();
@@ -57,11 +65,7 @@ public class Game1 : Core
         IsMouseVisible = true;
     }
 
-    public struct CollisionObject 
-    {
-        public Rectangle Bounds;
-        public bool IsOneWay;
-    }
+    
 
     public struct LevelExit
     {
@@ -138,6 +142,8 @@ public class Game1 : Core
 
         _character = Content.Load<Texture2D>("images/character");
         _damageFont = Content.Load<SpriteFont>("fonts/DamageFont");
+        _skeletEnemy = Content.Load<Texture2D>("enemies/skeleton/skeleton_sheet"); 
+        _skeletSlash = Content.Load<Texture2D>("enemies/skeleton/skeleton_slash_fx");
 
         for (int i = 1; i <= 4; i++) 
             _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
@@ -146,6 +152,7 @@ public class Game1 : Core
             _dummyHitFrames.Add(Content.Load<Texture2D>($"enemies/dummy/dummy_hit{i}"));
 
         _dummy = new Target(_dummyIdleFrames, _dummyHitFrames, new Vector2(500, 497));
+        _skeleton = new Skeleton(_skeletEnemy, _skeletSlash, new Vector2(1200, 450));
 
         LoadLevel("level1", "Spawn");
     }
@@ -229,7 +236,8 @@ public class Game1 : Core
 
                 foreach (var collisionAttack in _collisionObjects)
                 {
-                    if (collisionAttack.IsOneWay) continue;
+                    if (collisionAttack.IsOneWay)
+                        continue;
 
                     if (attackHitbox.Intersects(collisionAttack.Bounds))
                     {
@@ -510,6 +518,7 @@ public class Game1 : Core
 
         _mapRenderer.Update(gameTime);
         _dummy.Update(gameTime);
+        _skeleton.Update(gameTime, _pos, _collisionObjects, _stats);
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -541,7 +550,11 @@ public class Game1 : Core
         _mapRenderer.Draw(cameraMatrix);
 
         SpriteBatch.Begin(transformMatrix: cameraMatrix, samplerState: SamplerState.PointClamp);
-        _dummy.Draw(SpriteBatch);
+        if (_currentLevelName == "level1")
+        {
+            _dummy.Draw(SpriteBatch);
+            _skeleton.Draw(SpriteBatch);
+        }
 
         SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
         foreach (var text in _damageTexts)

@@ -87,6 +87,30 @@
 /processorParam:TextureFormat=Color
 /build:enemies/dummy/dummy_idle.png
 
+#begin enemies/skeleton/skeleton_sheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:enemies/skeleton/skeleton_sheet.png
+
+#begin enemies/skeleton/skeleton_slash_fx.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:enemies/skeleton/skeleton_slash_fx.png
+
 #begin fonts/DamageFont.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
