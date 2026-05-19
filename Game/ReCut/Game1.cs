@@ -19,9 +19,10 @@ public class Game1 : Core
     private KeyboardState _previousState;
     private MouseState _previousMouseState;
     private Texture2D _character;
+    private Texture2D _whitePixel;
     private Target _dummy;
     private Skeleton _skeleton;
-    private Texture2D _skeletEnemy, _skeletSlash;
+    private Texture2D _skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie;
     private TiledMap _map;
     private SpriteFont _damageFont;
     private TiledMapRenderer _mapRenderer;
@@ -142,8 +143,17 @@ public class Game1 : Core
 
         _character = Content.Load<Texture2D>("images/character");
         _damageFont = Content.Load<SpriteFont>("fonts/DamageFont");
-        _skeletEnemy = Content.Load<Texture2D>("enemies/skeleton/skeleton_sheet"); 
-        _skeletSlash = Content.Load<Texture2D>("enemies/skeleton/skeleton_slash_fx");
+        
+        _skeletonIdle = Content.Load<Texture2D>("enemies/skeleton/skeleton_idle");
+        _skeletonWalk = Content.Load<Texture2D>("enemies/skeleton/skeleton_walk");
+        _skeletonAttack1 = Content.Load<Texture2D>("enemies/skeleton/skeleton_attack1");
+        _skeletonAttack2 = Content.Load<Texture2D>("enemies/skeleton/skeleton_attack2");
+        _skeletonHurt = Content.Load<Texture2D>("enemies/skeleton/skeleton_hurt");
+        _skeletonDie = Content.Load<Texture2D>("enemies/skeleton/skeleton_die");
+
+        _whitePixel = new Texture2D(GraphicsDevice, 1, 1);
+        _whitePixel.SetData(new[] { Color.White });
+        _stats = new PlayerStats();
 
         for (int i = 1; i <= 4; i++) 
             _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
@@ -152,7 +162,7 @@ public class Game1 : Core
             _dummyHitFrames.Add(Content.Load<Texture2D>($"enemies/dummy/dummy_hit{i}"));
 
         _dummy = new Target(_dummyIdleFrames, _dummyHitFrames, new Vector2(500, 497));
-        _skeleton = new Skeleton(_skeletEnemy, _skeletSlash, new Vector2(1200, 450));
+        _skeleton = new Skeleton(_skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie, new Vector2(1200, 450));
 
         LoadLevel("level1", "Spawn");
     }
@@ -163,6 +173,8 @@ public class Game1 : Core
         MouseState currentMouseState = Mouse.GetState();
         Vector2 mouseWorldPos = (currentMouseState.Position.ToVector2() / zoom) + _cameraPos;
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        if (_stats != null)
+            _stats.Update(gameTime);
         bool _jumpPressed = (currentState.IsKeyDown(Keys.Space) && _previousState.IsKeyUp(Keys.Space)) || (currentState.IsKeyDown(Keys.W) && _previousState.IsKeyUp(Keys.W));
 
         if (_hitStopTimer > 0)
@@ -255,6 +267,19 @@ public class Game1 : Core
                     _damageTexts.Add(new DamageText(_dummy.Position + new Vector2(16, -10), 5));
                 }
 
+                if (_skeleton != null && attackHitbox.Intersects(_skeleton.Hitbox))
+                {
+                    hitWall = true;
+                    _attackCooldown = 0;
+                    _hitStopTimer = 0.2f;
+                    bool died = _skeleton.TakeDamage(1);
+                    _damageTexts.Add(new DamageText(_skeleton.Position + new Vector2(16, -10), died ? 12 : 8));
+                    if (died)
+                    {
+                        _skeleton = null;
+                    }
+                }
+
                 if (hitWall || _attackDistanceLeft <= 0)
                 {
                     _attackAnimState = 1;
@@ -284,8 +309,8 @@ public class Game1 : Core
 
         else 
         {
-            {
-                _velocity.Y += Gravity * dt;
+                {
+                    _velocity.Y += Gravity * dt;
 
                 if (_wallJumpTimer > 0)
                 {
@@ -518,7 +543,8 @@ public class Game1 : Core
 
         _mapRenderer.Update(gameTime);
         _dummy.Update(gameTime);
-        _skeleton.Update(gameTime, _pos, _collisionObjects, _stats);
+        if (_skeleton != null)
+            _skeleton.Update(gameTime, _pos, _collisionObjects, _stats);
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -550,10 +576,11 @@ public class Game1 : Core
         _mapRenderer.Draw(cameraMatrix);
 
         SpriteBatch.Begin(transformMatrix: cameraMatrix, samplerState: SamplerState.PointClamp);
-        if (_currentLevelName == "level1")
+            if (_currentLevelName == "level1")
         {
             _dummy.Draw(SpriteBatch);
-            _skeleton.Draw(SpriteBatch);
+            if (_skeleton != null)
+                _skeleton.Draw(SpriteBatch);
         }
 
         SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
@@ -563,6 +590,13 @@ public class Game1 : Core
         }
         SpriteBatch.End();
 
+        SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        if (_stats != null)
+            _stats.DrawHealthBar(SpriteBatch, _whitePixel, gameTime);
+        SpriteBatch.End();
+
         base.Draw(gameTime);
     }
+
+    
 }
