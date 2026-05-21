@@ -112,16 +112,16 @@
   <object id="58" x="1792" y="544" width="800" height="32"/>
   <object id="59" x="2560" y="0" width="32" height="576"/>
   <object id="61" name="Platform" type="OneWay" x="32" y="480" width="32" height="8.75"/>
-  <object id="64" name="ExitDown" type="LevelExit" x="1632" y="570" width="160" height="32">
+  <object id="64" name="ExitDown" type="LevelExit" x="1601.5" y="570" width="223" height="52">
    <properties>
     <property name="TargetLevel" value="level2"/>
    </properties>
   </object>
-  <object id="65" name="ExitUp" type="LevelExit" x="2304" y="-26" width="160" height="32"/>
+  <object id="65" name="ExitUp" type="LevelExit" x="2272.5" y="-49" width="223" height="55"/>
   <object id="66" name="SpawnUp" x="2382.86" y="36.1389">
    <point/>
   </object>
-  <object id="67" name="SpawnDown" x="1819.89" y="525.902">
+  <object id="67" name="SpawnDown" x="1925.89" y="521.902">
    <point/>
   </object>
  </objectgroup>

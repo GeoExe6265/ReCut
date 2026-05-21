@@ -99,6 +99,9 @@ public class Skeleton
 
         foreach (var col in collisions)
         {
+            if (col.IsSpikes)
+                continue;
+
             if (floorProbe.Intersects(col.Bounds))
                 return true;
         }
@@ -174,6 +177,9 @@ public class Skeleton
 
         foreach (var col in collisions)
         {
+            if (col.IsSpikes)
+                continue;
+
             Rectangle rect = col.Bounds;
             bool overlapX = nextBody.Right > rect.Left && nextBody.Left < rect.Right;
 
@@ -213,6 +219,7 @@ public class Skeleton
 
                 if (playerInAttackHeight && distToPlayer <= BackAttackRange && !playerInFront && _turnCooldown <= 0f && _attackCooldown <= 0f)
                 {
+                    FacePlayer(playerCenter);
                     attackWanted = true;
                 }
 
@@ -239,7 +246,7 @@ public class Skeleton
 
                         foreach (var col in collisions)
                         {
-                            if (col.IsOneWay)
+                            if (col.IsOneWay || col.IsSpikes)
                                 continue;
 
                             if (wallCheck.Intersects(col.Bounds) || nextBodyX.Intersects(col.Bounds))

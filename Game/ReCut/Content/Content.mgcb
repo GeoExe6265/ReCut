@@ -188,6 +188,11 @@
 /processor:TiledMapProcessor
 /build:maps/level2.tmx
 
+#begin maps/levelsecret.tmx
+/importer:TiledMapImporter
+/processor:TiledMapProcessor
+/build:maps/levelsecret.tmx
+
 #begin maps/tiles/CastleTiles.png
 /importer:TextureImporter
 /processor:TextureProcessor
