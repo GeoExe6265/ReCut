@@ -37,10 +37,10 @@ public class Skeleton
 
     private int _direction = 1;
     private float _speed = 110f;
-    private float _verticalVelocity = 0f;
+    private float _YVelocity = 0f;
     private bool _onGround = false;
     private bool _isAttacking = false;
-    private bool _attackDamageApplied = false;
+    private bool _doesAttackCount = false;
     private float _attackPrepareTimer = 0f;
     private bool _isPreparingAttack = false;
     private bool _isHurt = false;
@@ -58,11 +58,12 @@ public class Skeleton
         private const int BodyWidth = 16;
         private const int BodyHeight = 36;
     private const int BodyBottomOffset = BodyTopOffset + BodyHeight;
+    private const int VisualXOffset = -12;
     private const int VisualYOffset = -21;
-    private const int DamageHitboxLeftOffset = 12;
-    private const int DamageHitboxTopOffset = 12;
+    private const int DamageHitboxLeft = 12;
+    private const int DamageHitboxTop = -8;
     private const int DamageHitboxWidth = 40;
-    private const int DamageHitboxHeight = 78;
+    private const int DamageHitboxHeight = 60;
     private const float AttackRange = 90f;
     private const float BackAttackRange = 85f;
     private const float AttackPrepareDelay = 0.5f;
@@ -94,8 +95,9 @@ public class Skeleton
 
     private bool HasGroundAhead(float nextX, List<CollisionObject> collisions)
     {
-           int probeX = (int)nextX + (_direction == 1 ? 20 : 12);
-        Rectangle floorProbe = new Rectangle(probeX, (int)Position.Y + BodyBottomOffset + 1, 6, 8);
+        Rectangle body = GetBodyRectangle(new Vector2(nextX, Position.Y));
+        int probeX = _direction == 1 ? body.Right + 30 : body.Left;
+        Rectangle floorProbe = new Rectangle(probeX, body.Bottom + 1, 6, 8);
 
         foreach (var col in collisions)
         {
@@ -167,13 +169,16 @@ public class Skeleton
             float distToPlayer = Vector2.Distance(GetSkeletonCenter(), playerCenter);
 
         _onGround = false;
-        _verticalVelocity += Gravity * dt;
-        if (_verticalVelocity > MaxFallSpeed)
-            _verticalVelocity = MaxFallSpeed;
+        _YVelocity += Gravity * dt;
+        if (_YVelocity > MaxFallSpeed)
+            _YVelocity = MaxFallSpeed;
 
-        float nextY = Position.Y + _verticalVelocity * dt;
+        float nextY = Position.Y + _YVelocity * dt;
         Rectangle currentBody = GetBodyRectangle(Position);
         Rectangle nextBody = GetBodyRectangle(new Vector2(Position.X, nextY));
+        Rectangle nextFeetHitbox = new Rectangle((int)Position.X + BodyLeftOffset, (int)nextY + BodyBottomOffset - 2, BodyWidth, 4);
+        float currentFeetY = Position.Y + BodyBottomOffset;
+        float projectedFeetY = nextY + BodyBottomOffset;
 
         foreach (var col in collisions)
         {
@@ -186,19 +191,22 @@ public class Skeleton
             if (!overlapX)
                 continue;
 
-            if (!col.IsOneWay && _verticalVelocity < 0f && currentBody.Top >= rect.Bottom && nextBody.Top < rect.Bottom)
+            if (!col.IsOneWay && _YVelocity < 0f && currentBody.Top >= rect.Bottom && nextBody.Top < rect.Bottom)
             {
                 Position.Y = rect.Bottom - BodyTopOffset;
-                _verticalVelocity = 0f;
+                _YVelocity = 0f;
                 nextY = Position.Y;
                 nextBody = GetBodyRectangle(new Vector2(Position.X, nextY));
                 continue;
             }
 
-            if (_verticalVelocity >= 0f && currentBody.Bottom <= rect.Top && nextBody.Bottom >= rect.Top)
+            bool crossedTop = _YVelocity >= 0f && currentFeetY <= rect.Top && projectedFeetY >= rect.Top;
+            bool touchedFeet = nextFeetHitbox.Intersects(rect);
+
+            if (crossedTop || touchedFeet)
             {
                 Position.Y = rect.Top - BodyBottomOffset;
-                _verticalVelocity = 0f;
+                _YVelocity = 0f;
                 _onGround = true;
                 nextY = Position.Y;
                 nextBody = GetBodyRectangle(new Vector2(Position.X, nextY));
@@ -294,7 +302,7 @@ public class Skeleton
                 _attackPrepareTimer = 0f;
                 _isPreparingAttack = false;
                 _isAttacking = true;
-                _attackDamageApplied = false;
+                _doesAttackCount = false;
                 SelectRandomAttack();
                 _currentFrame = 0;
                 _animTimer = 0;
@@ -331,7 +339,7 @@ public class Skeleton
             _currentFrame++;
             _animTimer = 0;
 
-            if (_isAttacking && !_attackDamageApplied)
+            if (_isAttacking && !_doesAttackCount)
             {
                     float damageCheckDist = Vector2.Distance(GetSkeletonCenter(), playerCenter);
                 if (damageCheckDist < AttackRange && IsPlayerInFront(playerCenter) && IsPlayerInAttackHeight(playerCenter))
@@ -339,13 +347,13 @@ public class Skeleton
                     stats?.TakeDamage(15);
                 }
 
-                _attackDamageApplied = true;
+                _doesAttackCount = true;
             }
 
             if (_isAttacking && _currentFrame >= maxFrames)
             {
                 _isAttacking = false;
-                _attackDamageApplied = false;
+                _doesAttackCount = false;
                 _currentState = AnimationState.Idle;
                 _currentFrame = 0;
                 _attackCooldown = 1.2f;
@@ -364,7 +372,7 @@ public class Skeleton
             }
         }
 
-        Hitbox = new Rectangle((int)Position.X + DamageHitboxLeftOffset, (int)Position.Y + DamageHitboxTopOffset, DamageHitboxWidth, DamageHitboxHeight);
+        Hitbox = new Rectangle((int)Position.X + DamageHitboxLeft, (int)Position.Y + DamageHitboxTop, DamageHitboxWidth, DamageHitboxHeight);
     }
 
     private void SelectRandomAttack()
@@ -386,7 +394,7 @@ public class Skeleton
 
         _attackPrepareTimer = 0f;
         _isAttacking = true;
-        _attackDamageApplied = false;
+        _doesAttackCount = false;
         SelectRandomAttack();
         _currentFrame = 0;
         _animTimer = 0;
@@ -414,7 +422,7 @@ public class Skeleton
         _currentFrame = 0;
         _animTimer = 0;
         _isAttacking = false;
-        _attackDamageApplied = false;
+        _doesAttackCount = false;
         _attackPrepareTimer = 0f;
 
         return false;
@@ -471,7 +479,7 @@ public class Skeleton
         int sourceWidth = Math.Min(_frameWidth, Math.Max(1, sprite.Width - sourceX));
         int sourceHeight = Math.Min(_frameHeight, sprite.Height);
         Rectangle sourceRect = new Rectangle(sourceX, 0, sourceWidth, sourceHeight);
-        Vector2 drawPosition = new Vector2(Position.X, Position.Y + VisualYOffset);
+        Vector2 drawPosition = new Vector2(Position.X + VisualXOffset, Position.Y + VisualYOffset);
 
         spriteBatch.Draw(sprite, drawPosition, sourceRect, Color.White, 0f, Vector2.Zero, 1f, flip, 0f);
     }

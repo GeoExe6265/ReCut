@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-up" width="81" height="18" tilewidth="32" tileheight="32" infinite="0" nextlayerid="8" nextobjectid="68">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-up" width="81" height="18" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="72">
  <tileset firstgid="1" name="CastleTiles" tilewidth="32" tileheight="32" tilecount="56" columns="8">
   <image source="tiles/CastleTiles.png" width="256" height="224"/>
  </tileset>
@@ -91,6 +91,17 @@
 41,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,43,10,41,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,0,0,0,0,0,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,43
 </data>
  </layer>
+ <objectgroup id="8" name="Enemies">
+  <object id="69" name="Skeleton" type="Enemy" x="1313.33" y="485.333">
+   <point/>
+  </object>
+  <object id="70" name="Skeleton" type="Enemy" x="2424" y="499.333">
+   <point/>
+  </object>
+  <object id="71" name="Skeleton" type="Enemy" x="815.334" y="376.667">
+   <point/>
+  </object>
+ </objectgroup>
  <objectgroup id="3" name="Collision">
   <object id="43" x="128" y="225" width="63" height="158"/>
   <object id="44" name="Platform" type="OneWay" x="512" y="256.25" width="96.25" height="8.75"/>

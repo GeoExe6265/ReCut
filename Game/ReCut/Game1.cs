@@ -22,7 +22,7 @@ public class Game1 : Core
     private Texture2D _character;
     private Texture2D _whitePixel;
     private Target _dummy;
-    private Skeleton _skeleton;
+    private List<Skeleton> _skeletons = new List<Skeleton>();
     private Texture2D _skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie;
     private TiledMap _map;
     private SpriteFont _damageFont;
@@ -42,14 +42,20 @@ public class Game1 : Core
     private SpriteEffects _facing = SpriteEffects.None;
     private bool _onGround;
     private bool _isAttacking = false;
+    private bool _attackLock = false;
+    private bool _pendingAttackBounce = false;
+    private Vector2 _pendingAttackBounceVelocity = Vector2.Zero;
+    private bool _attackHitThisSwing = false;
     private bool _isOnCooldown;
     private bool _isOnWall;
     private float zoom = 2.5f;
     private float _attackAnimTimer = 0f;
     private float _attackCooldown = 0f;
+    private float _HitAttackTimer = 0f;
     private float _wallJumpTimer = 0f;
     private float _hitStopTimer = 0f;
-    private float _spikeDamageImmunityTimer = 0f;
+    private float _darkScreen = 0f;
+    private float _spikeImmunity = 0f;
     private float _animTimer;
     private float _attackDistanceLeft;
     private int _frameWidth = 64;
@@ -64,6 +70,9 @@ public class Game1 : Core
     private const float JumpForce = -600f;
     private const float Speed = 350f;
     private const float AttackCooldownTime = 0.75f;
+    private const float AttackDelay = 0.5f;
+    private const float AttackBounceSpeed = 320f;
+    private const float AttackBounceHeight = 260f;
     private const float SpikeDamageImmunityTime = 0.45f;
     private static readonly string[] PreloadLevelNames = new[] { "level1", "level2", "levelsecret" };
     public Game1() : base("ReCut", 1280, 720, false)
@@ -152,6 +161,56 @@ public class Game1 : Core
         return Vector2.Zero;
     }
 
+    private void ApplyAttackBounce()
+    {
+        if (!_pendingAttackBounce)
+            return;
+
+        _velocity = _pendingAttackBounceVelocity;
+        _wallJumpTimer = 0.18f;
+        _attackLock = false;
+        _isAttacking = false;
+        _attackAnimState = 0;
+        _currentFrame = 0;
+        _attackAnimTimer = 0f;
+        _attackDistanceLeft = 0f;
+        _attackDir = Vector2.Zero;
+        _pendingAttackBounce = false;
+        _pendingAttackBounceVelocity = Vector2.Zero;
+    }
+
+    private IEnumerable<TiledMapObject> GetEnemySpawnObjects()
+    {
+        var enemyLayer = _map.GetLayer<TiledMapObjectLayer>("Enemies");
+        if (enemyLayer != null)
+            return enemyLayer.Objects;
+
+        return Array.Empty<TiledMapObject>();
+    }
+
+    private void SpawnSkeletonsFromMap(IEnumerable<TiledMapObject> objects)
+    {
+        _skeletons.Clear();
+
+        foreach (var obj in objects)
+        {
+            bool isSkeletonSpawn = string.Equals((obj.Name ?? string.Empty).Trim(), "Skeleton", StringComparison.OrdinalIgnoreCase)
+                && string.Equals((obj.Type ?? string.Empty).Trim(), "Enemy", StringComparison.OrdinalIgnoreCase);
+
+            if (!isSkeletonSpawn)
+                continue;
+
+            _skeletons.Add(new Skeleton(
+                _skeletonIdle,
+                _skeletonWalk,
+                _skeletonAttack1,
+                _skeletonAttack2,
+                _skeletonHurt,
+                _skeletonDie,
+                obj.Position));
+        }
+    }
+
     // Я ЭТУ ПРОГРУЗКУ ДЕЛАЛ 2 С ПОЛОВИНОЙ ЧАСА. МОЖНО МНЕ ОТДОХНУТЬ? ;-;
     private void LoadLevel(string levelName, string spawnName)
     {
@@ -189,6 +248,8 @@ public class Game1 : Core
                 });
             }
         }
+
+        SpawnSkeletonsFromMap(GetEnemySpawnObjects());
 
         _lastSafePosition = _pos;
         _velocity = Vector2.Zero;
@@ -231,7 +292,6 @@ public class Game1 : Core
             _dummyHitFrames.Add(Content.Load<Texture2D>($"enemies/dummy/dummy_hit{i}"));
 
         _dummy = new Target(_dummyIdleFrames, _dummyHitFrames, new Vector2(500, 497));
-        _skeleton = new Skeleton(_skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie, new Vector2(1200, 450));
 
         PreloadLevels();
 
@@ -246,11 +306,25 @@ public class Game1 : Core
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         Rectangle playerRect = Rectangle.Empty;
 
-        if (_spikeDamageImmunityTimer > 0f)
+        if (_spikeImmunity > 0f)
         {
-            _spikeDamageImmunityTimer -= dt;
-            if (_spikeDamageImmunityTimer < 0f)
-                _spikeDamageImmunityTimer = 0f;
+            _spikeImmunity -= dt;
+            if (_spikeImmunity < 0f)
+                _spikeImmunity = 0f;
+        }
+
+        if (_darkScreen > 0f)
+        {
+            _darkScreen -= dt;
+            if (_darkScreen < 0f)
+                _darkScreen = 0f;
+        }
+
+        if (_HitAttackTimer > 0f)
+        {
+            _HitAttackTimer -= dt;
+            if (_HitAttackTimer < 0f)
+                _HitAttackTimer = 0f;
         }
 
         if (_stats != null)
@@ -260,6 +334,16 @@ public class Game1 : Core
         if (_hitStopTimer > 0)
         {
             _hitStopTimer -= dt;
+            if (_hitStopTimer <= 0f)
+            {
+                _hitStopTimer = 0f;
+
+                if (_pendingAttackBounce)
+                {
+                    ApplyAttackBounce();
+                }
+            }
+
             return;
         }
 
@@ -287,13 +371,15 @@ public class Game1 : Core
             _attackCooldown -= dt;
         }
     
-        if (currentMouseState.LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released && !_isAttacking && _attackCooldown <= 0) 
+        if (currentMouseState.LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released 
+        && !_isAttacking && !_attackLock && _attackCooldown <= 0 && _HitAttackTimer <= 0f) 
         {
             _isAttacking = true;
             _attackCooldown = AttackCooldownTime;
             _attackAnimState = 0;
             _currentRow = 8;
             _currentFrame = 0;
+            _attackHitThisSwing = false;
             _attackDir = mouseWorldPos - (_pos + new Vector2(32, 16));
 
             if (_attackDir != Vector2.Zero)
@@ -338,26 +424,52 @@ public class Game1 : Core
                     }
                 }
 
-                if (attackHitbox.Intersects(_dummy.Hitbox))
+                if (string.Equals(_currentLevelName, "level1", StringComparison.OrdinalIgnoreCase) && attackHitbox.Intersects(_dummy.Hitbox))
                 {
                     _dummy.IsHit = true; 
                     hitWall = true;
                     _attackCooldown = 0;
+                    _HitAttackTimer = AttackDelay;
                     _hitStopTimer = 0.2f;
+                    _pendingAttackBounce = true;
+                    _attackHitThisSwing = true;
+                    _attackLock = false;
+                    _pendingAttackBounceVelocity = new Vector2(
+                        -_attackDir.X * AttackBounceSpeed,
+                        Math.Min(-_attackDir.Y * AttackBounceSpeed, -AttackBounceHeight));
                     _damageTexts.Add(new DamageText(_dummy.Position + new Vector2(16, -10), 5));
                 }
 
-                if (_skeleton != null && attackHitbox.Intersects(_skeleton.Hitbox))
+                for (int i = _skeletons.Count - 1; i >= 0; i--)
                 {
+                    Skeleton skeleton = _skeletons[i];
+                    if (!attackHitbox.Intersects(skeleton.Hitbox))
+                        continue;
+
+                    Rectangle skeletonHitbox = skeleton.Hitbox;
+                    int attackCenterY = attackHitbox.Top + (attackHitbox.Height / 2);
+                    int upperBound = skeletonHitbox.Top + 18;
+                    int lowerBound = skeletonHitbox.Bottom - 18;
+
+                    if (attackCenterY < upperBound || attackCenterY > lowerBound)
+                        continue;
+
                     hitWall = true;
                     _attackCooldown = 0;
+                    _HitAttackTimer = AttackDelay;
                     _hitStopTimer = 0.2f;
-                    bool died = _skeleton.TakeDamage(1);
-                    _damageTexts.Add(new DamageText(_skeleton.Position + new Vector2(16, -10), died ? 12 : 8));
+                    _pendingAttackBounce = true;
+                    _attackHitThisSwing = true;
+                    _attackLock = false;
+                    _pendingAttackBounceVelocity = new Vector2(
+                        -_attackDir.X * AttackBounceSpeed,
+                        Math.Min(-_attackDir.Y * AttackBounceSpeed, -AttackBounceHeight));
+                    bool died = skeleton.TakeDamage(1);
+                    _damageTexts.Add(new DamageText(skeleton.Position + new Vector2(16, -10), died ? 12 : 8));
                     if (died)
-                    {
-                        _skeleton = null;
-                    }
+                        _skeletons.RemoveAt(i);
+
+                    break;
                 }
 
                 if (hitWall || _attackDistanceLeft <= 0)
@@ -382,6 +494,8 @@ public class Game1 : Core
                         _currentFrame = 0;
                         _animTimer = 0;
                         _velocity = Vector2.Zero;
+                        _attackLock = !_attackHitThisSwing && !_onGround && !_isOnWall;
+                        _attackHitThisSwing = false;
                     }
                 }
             }
@@ -540,6 +654,11 @@ public class Game1 : Core
                     _wallJumpTimer = 0.25f; 
                 }
 
+                if (_onGround || _isOnWall)
+                {
+                    _attackLock = false;
+                }
+
                 playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
 
                 bool isTouchingSpikes = false;
@@ -565,7 +684,7 @@ public class Game1 : Core
                     if (!col.IsSpikes)
                         continue;
 
-                    if (_spikeDamageImmunityTimer > 0f)
+                    if (_spikeImmunity > 0f)
                         continue;
 
                     if (!playerRect.Intersects(col.Bounds))
@@ -586,7 +705,8 @@ public class Game1 : Core
                     _isOnWall = false;
                     _wallJumpTimer = 0f;
                     _hitStopTimer = 0.2f;
-                    _spikeDamageImmunityTimer = SpikeDamageImmunityTime;
+                    _darkScreen = 0.2f;
+                    _spikeImmunity = SpikeDamageImmunityTime;
                     playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
 
                     break;
@@ -672,9 +792,14 @@ public class Game1 : Core
         UpdateCamera();
 
         _mapRenderer.Update(gameTime);
-        _dummy.Update(gameTime);
-        if (_skeleton != null)
-            _skeleton.Update(gameTime, _pos, _collisionObjects, _stats);
+        if (string.Equals(_currentLevelName, "level1", StringComparison.OrdinalIgnoreCase))
+            _dummy.Update(gameTime);
+        for (int i = _skeletons.Count - 1; i >= 0; i--)
+        {
+            _skeletons[i].Update(gameTime, _pos, _collisionObjects, _stats);
+            if (_skeletons[i].IsDead())
+                _skeletons.RemoveAt(i);
+        }
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -706,12 +831,11 @@ public class Game1 : Core
         _mapRenderer.Draw(cameraMatrix);
 
         SpriteBatch.Begin(transformMatrix: cameraMatrix, samplerState: SamplerState.PointClamp);
-            if (_currentLevelName == "level1")
-        {
+        if (string.Equals(_currentLevelName, "level1", StringComparison.OrdinalIgnoreCase))
             _dummy.Draw(SpriteBatch);
-            if (_skeleton != null)
-                _skeleton.Draw(SpriteBatch);
-        }
+
+        foreach (var skeleton in _skeletons)
+            skeleton.Draw(SpriteBatch);
 
         SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
         foreach (var text in _damageTexts)
@@ -725,7 +849,7 @@ public class Game1 : Core
             _stats.DrawHealthBar(SpriteBatch, _whitePixel, gameTime);
         SpriteBatch.End();
 
-        if (_hitStopTimer > 0f)
+        if (_darkScreen > 0f)
         {
             float darkness = 0.35f;
             SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
