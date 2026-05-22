@@ -80,7 +80,7 @@ public class Game1 : Core
     private const float AttackCooldownTime = 0.75f;
     private const float AttackDelay = 0.5f;
     private const float AttackBounceSpeed = 320f;
-    private const float AttackBounceHeight = 260f;
+    private const float AttackBounceHeight = 350f;
     private const float SpikeDamageImmunityTime = 0.45f;
     private static readonly string[] PreloadLevelNames = new[] { "level1", "level2", "levelsecret" };
     public Game1() : base("ReCut", 1280, 720, false)
@@ -782,6 +782,8 @@ public class Game1 : Core
                     if (!playerRect.Intersects(col.Bounds))
                         continue;
 
+                    if (_currentLevelName != "level4")
+                    {
                     _stats?.TakeDamage(15);
                     _damageTexts.Add(new DamageText(_pos + new Vector2(24, -10), 15));
 
@@ -802,6 +804,31 @@ public class Game1 : Core
                     playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
 
                     break;
+                    }
+
+                    else
+                    {
+                    _stats?.TakeDamage(100);
+                    _damageTexts.Add(new DamageText(_pos + new Vector2(24, -10), 15));
+
+                    _pos = _lastSafePosition;
+                    _velocity = Vector2.Zero;
+                    _isAttacking = false;
+                    _attackAnimState = 0;
+                    _currentFrame = 0;
+                    _attackAnimTimer = 0;
+                    _attackDistanceLeft = 0f;
+                    _attackCooldown = 0f;
+                    _attackDir = Vector2.Zero;
+                    _isOnWall = false;
+                    _wallJumpTimer = 0f;
+                    _hitStopTimer = 0.2f;
+                    _darkScreen = 0.2f;
+                    _spikeImmunity = SpikeDamageImmunityTime;
+                    playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
+
+                    break;
+                    }
                 }
             }
 

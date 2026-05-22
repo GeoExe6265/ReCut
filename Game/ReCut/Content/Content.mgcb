@@ -205,6 +205,16 @@
 /processor:TiledMapProcessor
 /build:maps/level3.tmx
 
+#begin maps/level4.tmx
+/importer:TiledMapImporter
+/processor:TiledMapProcessor
+/build:maps/level4.tmx
+
+#begin maps/level5.tmx
+/importer:TiledMapImporter
+/processor:TiledMapProcessor
+/build:maps/level5.tmx
+
 #begin maps/levelsecret.tmx
 /importer:TiledMapImporter
 /processor:TiledMapProcessor
