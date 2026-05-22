@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-up" width="97" height="18" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="177">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-up" width="97" height="18" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="178">
  <tileset firstgid="1" name="CastleTiles" tilewidth="32" tileheight="32" tilecount="56" columns="8">
   <image source="tiles/CastleTiles.png" width="256" height="224"/>
  </tileset>
@@ -214,5 +214,8 @@
   <object id="144" x="0" y="448" width="32" height="96"/>
   <object id="175" name="Spikes" type="Spikes" x="30.6818" y="30.8488" width="17.6364" height="417.302"/>
   <object id="176" name="Spikes" type="Spikes" x="3054.68" y="157.849" width="17.6364" height="419.302"/>
+  <object id="177" name="SpawnUp" x="95.75" y="509">
+   <point/>
+  </object>
  </objectgroup>
 </map>
