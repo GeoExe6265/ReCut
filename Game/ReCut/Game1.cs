@@ -24,6 +24,7 @@ public class Game1 : Core
     private Target _dummy;
     private SpecialAttack _specialAttack;
     private SpecialAttackHud _specialAttackHud;
+    private GameOverScreen _gameOverScreen;
     private List<Skeleton> _skeletons = new List<Skeleton>();
     private List<FireWisp> _fireWisps = new List<FireWisp>();
     private Texture2D _skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie;
@@ -70,6 +71,9 @@ public class Game1 : Core
     private int _wallDirection = 0;
     private int _currentFrame, _currentRow;
     private string _currentLevelName;
+    private string _currentSpawnName = "Spawn";
+    private bool _isRespawning = false;
+    private float _respawnTimer = 0f;
     private const float Gravity = 1600f;
     private const float JumpForce = -600f;
     private const float Speed = 350f;
@@ -237,6 +241,7 @@ public class Game1 : Core
     // Я ЭТУ ПРОГРУЗКУ ДЕЛАЛ 2 С ПОЛОВИНОЙ ЧАСА. МОЖНО МНЕ ОТДОХНУТЬ? ;-;
     private void LoadLevel(string levelName, string spawnName)
     {
+        _currentSpawnName = string.IsNullOrWhiteSpace(spawnName) ? "Spawn" : spawnName;
         _currentLevelName = levelName;
         _collisionObjects.Clear();
         _levelExits.Clear();
@@ -244,7 +249,7 @@ public class Game1 : Core
         _mapRenderer = new TiledMapRenderer(GraphicsDevice, _map);
         var objects = _map.GetLayer<TiledMapObjectLayer>("Collision").Objects;
 
-        _pos = ResolveSpawnPosition(objects, spawnName);
+        _pos = ResolveSpawnPosition(objects, _currentSpawnName);
 
         foreach (var obj in objects)
         {
@@ -311,6 +316,7 @@ public class Game1 : Core
         _stats = new PlayerStats();
         _specialAttack = new SpecialAttack();
         _specialAttackHud = new SpecialAttackHud(new Vector2(20, 60));
+        _gameOverScreen = new GameOverScreen();
 
         for (int i = 1; i <= 4; i++) 
             _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
@@ -357,6 +363,26 @@ public class Game1 : Core
         if (_stats != null)
             _stats.Update(gameTime);
         bool _jumpPressed = (currentState.IsKeyDown(Keys.Space) && _previousState.IsKeyUp(Keys.Space)) || (currentState.IsKeyDown(Keys.W) && _previousState.IsKeyUp(Keys.W));
+
+        if (_isRespawning)
+        {
+            _respawnTimer -= dt;
+            _gameOverScreen.Update(gameTime);
+
+            if (_respawnTimer <= 0f)
+            {
+                _isRespawning = false;
+                _respawnTimer = 0f;
+                _stats?.RestoreFullHealth();
+                LoadLevel(_currentLevelName, _currentSpawnName);
+                UpdateCamera();
+            }
+
+            _previousState = currentState;
+            _previousMouseState = currentMouseState;
+            base.Update(gameTime);
+            return;
+        }
 
         if (_hitStopTimer > 0)
         {
@@ -875,6 +901,19 @@ public class Game1 : Core
             if (_fireWisps[i].IsDead())
                 _fireWisps.RemoveAt(i);
         }
+
+        if (_stats != null && _stats.Health <= 0f)
+        {
+            _isRespawning = true;
+            _respawnTimer = 1.25f;
+            _gameOverScreen.Show(_respawnTimer);
+            _velocity = Vector2.Zero;
+            _isAttacking = false;
+            _attackLock = false;
+            _pendingAttackBounce = false;
+            _attackDir = Vector2.Zero;
+            _attackDistanceLeft = 0f;
+        }
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -946,6 +985,13 @@ public class Game1 : Core
             float darkness = 0.35f;
             SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
             SpriteBatch.Draw(_whitePixel, new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height), Color.Black * darkness);
+            SpriteBatch.End();
+        }
+
+        if (_gameOverScreen != null && _gameOverScreen.IsVisible)
+        {
+            SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            _gameOverScreen.Draw(SpriteBatch, _whitePixel, _damageFont, GraphicsDevice.Viewport);
             SpriteBatch.End();
         }
 
