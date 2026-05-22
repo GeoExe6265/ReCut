@@ -21,9 +21,25 @@ public class PlayerStats
         Mana = MaxMana;
     }
 
+    private float _invulnerableTimer = 0f;
+
+    public bool IsInvulnerable => _invulnerableTimer > 0f;
+
+    public void SetInvulnerable(float seconds)
+    {
+        _invulnerableTimer = seconds;
+    }
+
     public void Update(GameTime gameTime)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+        if (_invulnerableTimer > 0f)
+        {
+            _invulnerableTimer -= dt;
+            if (_invulnerableTimer < 0f)
+                _invulnerableTimer = 0f;
+        }
 
         if (Mana < MaxMana)
         {
@@ -47,6 +63,9 @@ public class PlayerStats
 
     public void TakeDamage(float amount)
     {
+        if (IsInvulnerable)
+            return;
+
         Health -= amount;
         if (Health < 0)
             Health = 0;

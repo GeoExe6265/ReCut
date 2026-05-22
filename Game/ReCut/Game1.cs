@@ -22,8 +22,12 @@ public class Game1 : Core
     private Texture2D _character;
     private Texture2D _whitePixel;
     private Target _dummy;
+    private SpecialAttack _specialAttack;
+    private SpecialAttackHud _specialAttackHud;
     private List<Skeleton> _skeletons = new List<Skeleton>();
+    private List<FireWisp> _fireWisps = new List<FireWisp>();
     private Texture2D _skeletonIdle, _skeletonWalk, _skeletonAttack1, _skeletonAttack2, _skeletonHurt, _skeletonDie;
+    private Texture2D _fireWispTexture;
     private TiledMap _map;
     private SpriteFont _damageFont;
     private TiledMapRenderer _mapRenderer;
@@ -51,7 +55,7 @@ public class Game1 : Core
     private float zoom = 2.5f;
     private float _attackAnimTimer = 0f;
     private float _attackCooldown = 0f;
-    private float _HitAttackTimer = 0f;
+    private float _postHitAttackTimer = 0f;
     private float _wallJumpTimer = 0f;
     private float _hitStopTimer = 0f;
     private float _darkScreen = 0f;
@@ -181,6 +185,9 @@ public class Game1 : Core
 
     private IEnumerable<TiledMapObject> GetEnemySpawnObjects()
     {
+        if (_map == null)
+            return Array.Empty<TiledMapObject>();
+
         var enemyLayer = _map.GetLayer<TiledMapObjectLayer>("Enemies");
         if (enemyLayer != null)
             return enemyLayer.Objects;
@@ -208,6 +215,22 @@ public class Game1 : Core
                 _skeletonHurt,
                 _skeletonDie,
                 obj.Position));
+        }
+    }
+
+    private void SpawnFireWispsFromMap(IEnumerable<TiledMapObject> objects)
+    {
+        _fireWisps.Clear();
+
+        foreach (var obj in objects)
+        {
+            bool isFireWispSpawn = string.Equals((obj.Name ?? string.Empty).Trim(), "FireWisp", StringComparison.OrdinalIgnoreCase)
+                && string.Equals((obj.Type ?? string.Empty).Trim(), "Enemy", StringComparison.OrdinalIgnoreCase);
+
+            if (!isFireWispSpawn)
+                continue;
+
+            _fireWisps.Add(new FireWisp(_fireWispTexture, obj.Position));
         }
     }
 
@@ -250,6 +273,7 @@ public class Game1 : Core
         }
 
         SpawnSkeletonsFromMap(GetEnemySpawnObjects());
+        SpawnFireWispsFromMap(GetEnemySpawnObjects());
 
         _lastSafePosition = _pos;
         _velocity = Vector2.Zero;
@@ -280,10 +304,13 @@ public class Game1 : Core
         _skeletonAttack2 = Content.Load<Texture2D>("enemies/skeleton/skeleton_attack2");
         _skeletonHurt = Content.Load<Texture2D>("enemies/skeleton/skeleton_hurt");
         _skeletonDie = Content.Load<Texture2D>("enemies/skeleton/skeleton_die");
+        _fireWispTexture = Content.Load<Texture2D>("enemies/firewisp/firewisp");
 
         _whitePixel = new Texture2D(GraphicsDevice, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
         _stats = new PlayerStats();
+        _specialAttack = new SpecialAttack();
+        _specialAttackHud = new SpecialAttackHud(new Vector2(20, 60));
 
         for (int i = 1; i <= 4; i++) 
             _dummyIdleFrames.Add(Content.Load<Texture2D>("enemies/dummy/dummy_idle"));
@@ -320,11 +347,11 @@ public class Game1 : Core
                 _darkScreen = 0f;
         }
 
-        if (_HitAttackTimer > 0f)
+        if (_postHitAttackTimer > 0f)
         {
-            _HitAttackTimer -= dt;
-            if (_HitAttackTimer < 0f)
-                _HitAttackTimer = 0f;
+            _postHitAttackTimer -= dt;
+            if (_postHitAttackTimer < 0f)
+                _postHitAttackTimer = 0f;
         }
 
         if (_stats != null)
@@ -372,7 +399,7 @@ public class Game1 : Core
         }
     
         if (currentMouseState.LeftButton == ButtonState.Pressed && _previousMouseState.LeftButton == ButtonState.Released 
-        && !_isAttacking && !_attackLock && _attackCooldown <= 0 && _HitAttackTimer <= 0f) 
+        && !_isAttacking && !_attackLock && _attackCooldown <= 0 && _postHitAttackTimer <= 0f && !_specialAttack.IsCharging && !_specialAttack.IsActive) 
         {
             _isAttacking = true;
             _attackCooldown = AttackCooldownTime;
@@ -394,6 +421,21 @@ public class Game1 : Core
             else if (_attackDir.X > 0)
                 _facing = SpriteEffects.None;
         }
+
+        _specialAttack.UpdateFrame(
+            dt,
+            currentMouseState,
+            _previousMouseState,
+            ref _pos,
+            mouseWorldPos,
+            _collisionObjects,
+            _skeletons,
+            _fireWisps,
+            _dummy,
+            _currentLevelName,
+            _damageTexts,
+            _stats,
+            ref _facing);
 
         if (_isAttacking)
         {
@@ -429,7 +471,7 @@ public class Game1 : Core
                     _dummy.IsHit = true; 
                     hitWall = true;
                     _attackCooldown = 0;
-                    _HitAttackTimer = AttackDelay;
+                    _postHitAttackTimer = AttackDelay;
                     _hitStopTimer = 0.2f;
                     _pendingAttackBounce = true;
                     _attackHitThisSwing = true;
@@ -456,7 +498,7 @@ public class Game1 : Core
 
                     hitWall = true;
                     _attackCooldown = 0;
-                    _HitAttackTimer = AttackDelay;
+                    _postHitAttackTimer = AttackDelay;
                     _hitStopTimer = 0.2f;
                     _pendingAttackBounce = true;
                     _attackHitThisSwing = true;
@@ -468,6 +510,30 @@ public class Game1 : Core
                     _damageTexts.Add(new DamageText(skeleton.Position + new Vector2(16, -10), died ? 12 : 8));
                     if (died)
                         _skeletons.RemoveAt(i);
+
+                    break;
+                }
+
+                for (int i = _fireWisps.Count - 1; i >= 0; i--)
+                {
+                    FireWisp fireWisp = _fireWisps[i];
+                    if (!attackHitbox.Intersects(fireWisp.Hitbox))
+                        continue;
+
+                    hitWall = true;
+                    _attackCooldown = 0;
+                    _postHitAttackTimer = AttackDelay;
+                    _hitStopTimer = 0.2f;
+                    _pendingAttackBounce = true;
+                    _attackHitThisSwing = true;
+                    _attackLock = false;
+                    _pendingAttackBounceVelocity = new Vector2(
+                        -_attackDir.X * AttackBounceSpeed,
+                        Math.Min(-_attackDir.Y * AttackBounceSpeed, -AttackBounceHeight));
+                    bool died = fireWisp.TakeDamage(1);
+                    _damageTexts.Add(new DamageText(new Vector2(fireWisp.Hitbox.X, fireWisp.Hitbox.Y - 10), died ? 12 : 8));
+                    if (died)
+                        _fireWisps.RemoveAt(i);
 
                     break;
                 }
@@ -501,7 +567,7 @@ public class Game1 : Core
             }
         }
 
-        else 
+        else if (!_specialAttack.IsActive)
         {
                 {
                     _velocity.Y += Gravity * dt;
@@ -713,6 +779,8 @@ public class Game1 : Core
                 }
             }
 
+            playerRect = new Rectangle((int)_pos.X + 24, (int)_pos.Y + 14, 16, 18);
+
             foreach (var exit in _levelExits)
             {
                 if (playerRect.Intersects(exit.Bounds))
@@ -800,6 +868,13 @@ public class Game1 : Core
             if (_skeletons[i].IsDead())
                 _skeletons.RemoveAt(i);
         }
+
+        for (int i = _fireWisps.Count - 1; i >= 0; i--)
+        {
+            _fireWisps[i].Update(gameTime, _pos, _collisionObjects, _stats, _damageTexts);
+            if (_fireWisps[i].IsDead())
+                _fireWisps.RemoveAt(i);
+        }
         _previousState = currentState;
         _previousMouseState = currentMouseState;
         base.Update(gameTime);
@@ -837,7 +912,23 @@ public class Game1 : Core
         foreach (var skeleton in _skeletons)
             skeleton.Draw(SpriteBatch);
 
-        SpriteBatch.Draw(_character, _pos, sourceRect, Color.White, 0f, Vector2.Zero, 1f, _facing, 0f);
+        foreach (var fireWisp in _fireWisps)
+            fireWisp.Draw(SpriteBatch, _whitePixel);
+
+        Rectangle characterSourceRect = sourceRect;
+        if (_specialAttack.IsActive)
+        {
+            characterSourceRect = new Rectangle(_specialAttack.CurrentFrame * _frameWidth, _specialAttack.CurrentRow * _frameHeight, _frameWidth, _frameHeight);
+        }
+
+        Color characterTint = Color.White;
+        if (_specialAttack.IsCharging && !_specialAttack.IsActive)
+        {
+            bool blinkOn = ((int)(gameTime.TotalGameTime.TotalSeconds * 12f) % 2) == 0;
+            characterTint = blinkOn ? Color.White : Color.LightGray;
+        }
+
+        SpriteBatch.Draw(_character, _pos, characterSourceRect, characterTint, 0f, Vector2.Zero, 1f, _facing, 0f);
         foreach (var text in _damageTexts)
         {
             text.Draw(SpriteBatch, _damageFont);
@@ -847,6 +938,7 @@ public class Game1 : Core
         SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
         if (_stats != null)
             _stats.DrawHealthBar(SpriteBatch, _whitePixel, gameTime);
+        _specialAttackHud.Draw(SpriteBatch, _whitePixel, _specialAttack.CooldownRemaining);
         SpriteBatch.End();
 
         if (_darkScreen > 0f)

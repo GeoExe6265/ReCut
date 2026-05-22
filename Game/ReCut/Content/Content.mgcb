@@ -87,6 +87,18 @@
 /processorParam:TextureFormat=Color
 /build:enemies/dummy/dummy_idle.png
 
+#begin enemies/firewisp/firewisp.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:enemies/firewisp/firewisp.png
+
 #begin enemies/skeleton/skeleton_attack1.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -187,6 +199,11 @@
 /importer:TiledMapImporter
 /processor:TiledMapProcessor
 /build:maps/level2.tmx
+
+#begin maps/level3.tmx
+/importer:TiledMapImporter
+/processor:TiledMapProcessor
+/build:maps/level3.tmx
 
 #begin maps/levelsecret.tmx
 /importer:TiledMapImporter

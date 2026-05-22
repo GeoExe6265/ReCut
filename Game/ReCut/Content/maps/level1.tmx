@@ -128,7 +128,11 @@
     <property name="TargetLevel" value="level2"/>
    </properties>
   </object>
-  <object id="65" name="ExitUp" type="LevelExit" x="2272.5" y="-49" width="223" height="55"/>
+  <object id="65" name="ExitUp" type="LevelExit" x="2272.5" y="-49" width="223" height="55">
+   <properties>
+    <property name="TargetLevel" value="level3"/>
+   </properties>
+  </object>
   <object id="66" name="SpawnUp" x="2382.86" y="36.1389">
    <point/>
   </object>
