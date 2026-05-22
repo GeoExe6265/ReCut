@@ -102,6 +102,11 @@ public class PlayerStats
             Health = MaxHealth;
     }
 
+    public void RestoreFullHealth()
+    {
+        Health = MaxHealth;
+    }
+
     public void DrawHealthBar(SpriteBatch spriteBatch, Texture2D whitePixel, GameTime gameTime)
     {
         int barX = 20;
